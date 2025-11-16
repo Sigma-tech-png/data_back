@@ -9,7 +9,7 @@ app.set("trust proxy", 1); // обязательно для Render
 app.use(express.json());
 
 app.use(cors({
-  origin: "https://sponsor-ic6r.onrender.com",
+  origin: process.env.DOMEN,
   credentials: true
 }));
 
