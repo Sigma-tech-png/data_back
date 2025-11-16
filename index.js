@@ -15,13 +15,14 @@ app.use(cors({
 
 // Настройка сессий
 app.use(session({
-  secret: "mySecretKey123", // секрет для подписи куки
+  secret: "mySecretKey123",
   resave: false,
   saveUninitialized: false,
   cookie: {
-    maxAge: 1000 * 60 * 60, // 1 час
-    sameSite: "lax", // для локальной разработки
-    secure: false // localhost не использует https
+    maxAge: 1000 * 60 * 60,
+
+    sameSite: "none", // важно для продакшена
+    secure: true // cookie только через HTTPS
   }
 }));
 
