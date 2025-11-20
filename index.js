@@ -1,43 +1,59 @@
 const express = require("express");
-const session = require("express-session");
-const cors = require("cors");
-require("dotenv").config();
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 
 const app = express();
-app.set("trust proxy", 1); // обязательно для Render
+app.use(express.urlencoded({ extended: true })); // для чтения формы
+app.use(cookieParser());
 
-app.use(express.json());
+// Секрет для JWT
+const SECRET = "mySecretKey123";
 
-app.use(cors({
-  origin: process.env.DOMEN,
-  credentials: true
-}));
+// Главная страница
+app.get("/", (req, res) => {
+  const token = req.cookies.token;
 
-app.use(session({
-  secret: "mySecretKey123",
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    maxAge: 1000 * 60 * 60,
-    sameSite: "none",
-    secure: true
+  // Если токена нет — показываем форму
+  if (!token) {
+    return res.send(`
+      <form method="POST" action="/login">
+        <h3>Введите имя:</h3>
+        <input name="name" />
+        <button>Отправить</button>
+      </form>
+    `);
   }
-}));
 
-app.post("/login", (req, res) => {
-  const { username } = req.body;
-  if (!username) return res.status(400).json({ error: "No username" });
-
-  req.session.user = { username };
-  res.json({ message: "Logged in" });
+  // Если токен есть — пытаемся получить имя
+  try {
+    const data = jwt.verify(token, SECRET);
+    return res.send(`
+      <h2>Привет, ${data.name}!</h2>
+      <form method="POST" action="/logout">
+        <button>Выход</button>
+      </form>
+    `);
+  } catch {
+    return res.send("Ошибка токена");
+  }
 });
 
-app.get("/me", (req, res) => {
-  if (req.session.user) {
-    res.json({ user: req.session.user });
-  } else {
-    res.status(401).json({ error: "Not logged in" });
-  }
+// Обработка формы
+app.post("/login", (req, res) => {
+  const { name } = req.body;
+
+  // Создаём токен
+  const token = jwt.sign({ name }, SECRET, { expiresIn: "1h" });
+
+  // Сохраняем в cookie
+  res.cookie("token", token, { httpOnly: true });
+  res.redirect("/");
+});
+
+// Выход
+app.post("/logout", (req, res) => {
+  res.clearCookie("token");
+  res.redirect("/");
 });
 
 app.listen(3000, () => console.log("Server started..."));
