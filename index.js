@@ -9,20 +9,27 @@ dotenv.config()
 const app = express()
 app.use(express.json())
 app.use(cookieParser())
+
+// === CORS для HTTPS + кросс-домена ===
 app.use(
   cors({
-    origin: process.env.DOMEN,
+    origin: process.env.DOMEN, // твой фронтенд Render
     credentials: true,
   })
 )
 
+// === Пользователи в памяти (для теста) ===
 const users = []
+
+// === Секретный ключ для JWT ===
 const ACCESS_KEY = "ACCESS_SECRET"
 
+// === Генерация токена ===
 function makeToken(id) {
   return jwt.sign({ id }, ACCESS_KEY, { expiresIn: "10m" })
 }
 
+// === Middleware авторизации ===
 function auth(req, res, next) {
   const token = req.cookies.token
   if (!token) return res.status(401).json({ message: "no token" })
@@ -50,7 +57,11 @@ app.post("/register", async (req, res) => {
   const token = makeToken(user.id)
 
   res
-    .cookie("token", token, { httpOnly: true })
+    .cookie("token", token, {
+      httpOnly: true,
+      secure: true,       // HTTPS
+      sameSite: "None",   // кросс-домен
+    })
     .json({ name: user.name })
 })
 
@@ -62,14 +73,17 @@ app.post("/login", async (req, res) => {
   const user = users.find((u) => u.username === username)
 
   if (!user) return res.status(400).json({ message: "not found" })
-
   if (!(await bcrypt.compare(password, user.password)))
     return res.status(400).json({ message: "wrong pass" })
 
   const token = makeToken(user.id)
 
   res
-    .cookie("token", token, { httpOnly: true })
+    .cookie("token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+    })
     .json({ name: user.name })
 })
 
@@ -85,7 +99,8 @@ app.get("/me", auth, (req, res) => {
 //        LOGOUT
 // ============================
 app.post("/logout", (req, res) => {
-  res.clearCookie("token").json({ message: "logout ok" })
+  res.clearCookie("token", { httpOnly: true, secure: true, sameSite: "None" }).json({ message: "logout ok" })
 })
 
+// ============================
 app.listen(4000, () => console.log("Server on 4000"))
